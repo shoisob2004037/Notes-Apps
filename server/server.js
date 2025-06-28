@@ -9,10 +9,30 @@ dotenv.config()
 
 const app = express()
 
+// CORS Configuration
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+
+].filter(Boolean) 
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g., server-to-server requests, Postman)
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}))
+
 // Middleware
 app.use(express.json({ limit: "50mb" }))
 app.use(express.urlencoded({ extended: true, limit: "50mb" }))
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }))
 
 // MongoDB Connection
 mongoose
@@ -31,8 +51,13 @@ app.use("/api/notes", noteRoutes)
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
-  console.error(err.message)
-  res.status(500).json({ message: err.message })
+  console.error("Error:", {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method
+  })
+  res.status(500).json({ message: "Internal Server Error", error: err.message })
 })
 
 // Start Server
